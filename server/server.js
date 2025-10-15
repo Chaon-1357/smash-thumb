@@ -1,28 +1,31 @@
-// server/server.js
+// server.js
 import express from "express";
-import path from "path";
-import { fileURLToPath } from "url";
+import fetch from "node-fetch";
+import cors from "cors";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+app.use(cors());
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// 静的ファイル（フロントエンド）
-app.use(express.static(path.join(__dirname, "../")));
-
-// キャラ画像取得API（例: /image?char=lucas&color=1）
-app.get("/image", (req, res) => {
+// ✅ キャラクター画像プロキシ
+app.get("/image", async (req, res) => {
   const { char, color } = req.query;
-  // 例: assets/lucas_1.png を返す
-  const imgPath = path.join(__dirname, "../assets", `${char}_${color}.png`);
-  res.sendFile(imgPath, (err) => {
-    if (err) res.status(404).send("キャラ画像が見つかりません");
-  });
+  if (!char) return res.status(400).send("No character specified");
+
+  try {
+    // 例：Smash APIから画像を取得
+    const url = `https://smash-api.example.com/${encodeURIComponent(char)}_${color || 1}.png`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Image not found");
+    const buffer = await response.arrayBuffer();
+    res.set("Content-Type", "image/png");
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Image fetch failed");
+  }
 });
 
-// Renderで動作させる
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-});
+app.get("/", (req, res) => res.send("Smash Thumbnail Server Running ✅"));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
