@@ -120,7 +120,7 @@ function saveAdjustment(num) {
 // =========================================================
 function loadCharacterImages() {
   const load = (num, char, color, setter) => {
-    const proxy = `http://localhost:3000/image?char=${encodeURIComponent(char)}&color=${encodeURIComponent(color)}`;
+    const proxy = `https://smash-thumb-1.onrender.com/image?char=${encodeURIComponent(char)}&color=${encodeURIComponent(color)}`;
     loadImage(proxy, setter, () => setter(null));
 
     const adj = charAdjustments[char];
