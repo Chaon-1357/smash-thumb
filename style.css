@@ -160,3 +160,41 @@ button:hover {
 .tab-panel.active {
   display: block;
 }
+
+/* ========================
+   スマホ用レスポンシブデザイン（キャンバス常時表示）
+   ======================== */
+@media (max-width: 768px) {
+  main {
+    display: flex;
+    /* HTMLの順番を無視して、キャンバスを上に、コントロールを下に配置する魔法 */
+    flex-direction: column-reverse; 
+  }
+
+  #canvas-container {
+    /* 画面の上部にピタッと固定する */
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    background-color: #1e1e1e; /* 後ろの文字が透けないように背景色を塗る */
+    padding: 10px 0;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5); /* 影をつけてアプリっぽく立体感を出す */
+  }
+
+  /* キャンバス（画用紙）のサイズをスマホの横幅に100%合わせる */
+  #canvas-container canvas {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  #controls {
+    /* キャンバスが固定された分、下の操作パネルが窮屈にならないよう余白を調整 */
+    padding: 15px;
+  }
+  
+  /* スマホの時はタブボタンを少し大きくして押しやすくする */
+  .tab-btn {
+    padding: 15px 5px;
+    font-size: 14px;
+  }
+}
