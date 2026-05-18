@@ -1,109 +1,162 @@
+/* 全体のリセットと基本設定 */
+* {
+  box-sizing: border-box;
+}
+
 body {
-  font-family: "Nunito Sans", sans-serif;
-  background-color: #111;
-  color: #fff;
   margin: 0;
-  text-align: center;
+  padding: 10px;
+  font-family: 'Nunito Sans', 'Noto Serif JP', sans-serif;
+  background-color: #2c2f33; /* ダーク背景 */
+  color: #ffffff;
 }
 
 header h1 {
-  font-size: 28px;
-  margin: 20px 0;
+  text-align: center;
+  font-size: 1.5rem;
+  margin-top: 5px;
+  margin-bottom: 15px;
+  color: #E8FAFC;
 }
 
+/* メインレイアウト (スマホは縦、PCは横) */
 main {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 0;  
+  flex-direction: column; /* スマホ時は縦並び */
+  gap: 20px;
+  max-width: 1920px;
+  margin: 0 auto;
 }
 
+/* 画面幅が1024px以上のPCやタブレットの場合 */
+@media (min-width: 1024px) {
+  main {
+    flex-direction: row; /* 横並びに変更 */
+    align-items: flex-start;
+  }
+}
+
+/* 入力パネルのスタイル */
 #controls {
+  flex: 1; /* PC時、画面の1/4くらいを占める */
+  background: #23272a;
+  padding: 20px;
+  border-radius: 8px;
   display: flex;
-  justify-content: center;
-  gap: 30px;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
+  flex-direction: column;
+  gap: 15px;
 }
 
 .player-box, .match-box {
-  background: #222;
-  padding: 16px;
-  border-radius: 12px;
-  box-shadow: 0 0 10px #0008;
-  width: 300px;
-  text-align: left;
+  background: #2c2f33;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #444;
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 1.2rem;
+  border-bottom: 2px solid #7289da;
+  padding-bottom: 5px;
 }
 
 label {
   display: block;
-  margin-top: 8px;
-  font-size: 14px;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #99aab5;
 }
 
 input[type="text"], input[type="number"] {
   width: 100%;
-  margin-bottom: 6px;
-  padding: 4px;
-  border-radius: 6px;
-  border: none;
-  background: #333;
-  color: white;
+  padding: 8px;
+  margin-top: 4px;
+  border-radius: 4px;
+  border: 1px solid #7289da;
+  background: #23272a;
+  color: #ffffff;
 }
 
 input[type="range"] {
   width: 100%;
+  margin-top: 4px;
 }
 
 button {
-  margin-top: 10px;
-  width: 48%;
-  padding: 8px;
-  background: #0af;
+  width: 100%;
+  padding: 12px;
+  margin-top: 15px;
   border: none;
-  border-radius: 6px;
-  color: white;
+  border-radius: 4px;
   font-weight: bold;
   cursor: pointer;
+  transition: opacity 0.2s;
 }
+
+.update-btn { background: #7289da; color: #fff; }
+.export-btn { background: #43b581; color: #fff; }
 
 button:hover {
-  background: #09f;
+  opacity: 0.8;
 }
 
-/* 🟢 キャンバスを中央基準で50%表示（完全版） */
+.bg-buttons button {
+  flex: 1;
+  margin-top: 0;
+}
+
+/* キャンバス（プレビュー画像）のスタイル */
 #canvas-container {
-  width: 100vw;
-  height: 580px; /* 実際の1080pxの半分 */
+  flex: 3; /* PC時、画面の3/4くらいを占める */
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  transform: scale(0.5);
-  transform-origin: top center;
-  margin: 20;
-  overflow: visible;
+  width: 100%;
 }
 
-
-/* 🎨 キャンバス自体をブロック扱いで中央揃え */
+/* ★超重要：これで1920x1080の画像がスマホ画面に収まります */
 #canvas-container canvas {
-  display: block;
-  margin: 0 auto;
-  box-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
+  max-width: 100% !important;
+  height: auto !important;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
   border-radius: 8px;
 }
-.update-btn {
-  background: #419393;   
+
+
+/* ========================
+   タブ切り替え用UI
+   ======================== */
+.tab-buttons {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 15px;
 }
 
-.update-btn:hover {
-  background: #336666;
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  background-color: #2a2a2a;
+  color: #aaa;
+  border: 1px solid #444;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
 }
 
-.export-btn {
-  background: #FCA249;   
+/* 選択されているタブ */
+.tab-btn.active {
+  background-color: #419393;
+  color: #fff;
+  border-color: #419393;
 }
 
-.export-btn:hover {
-  background: #ff5f5f;
+/* パネルの表示・非表示 */
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
 }

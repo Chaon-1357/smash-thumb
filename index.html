@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>スマブラSP サムネイルジェネレーター ver1.1.0</title>
+    <title>スマブラSP サムネイルジェネレーター ver1.3.1</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Nunito+Sans:wght@400;700&display=swap"
       rel="stylesheet"
@@ -14,17 +14,37 @@
   </head>
   <body>
     <header>
-      <h1>SSBU thumbnail generator</h1>
+      <h1>SSBU thumbnail generator ver.1.2.0</h1>
     </header>
 
     <main>
       <section id="controls">
-        <div class="player-box">
-          <h2>1P</h2>
-          <label>キャラ</label>
-          <input id="p1Char" type="text" value="lucas" />
-          <label>カラー</label>
+        
+        <!-- ★追加：タブ切り替えボタン -->
+        <div class="tab-buttons">
+          <button class="tab-btn active" onclick="openTab(event, 'p1Box')">1P 設定</button>
+          <button class="tab-btn" onclick="openTab(event, 'p2Box')">2P 設定</button>
+          <button class="tab-btn" onclick="openTab(event, 'matchBox')">大会情報</button>
+        </div>
+
+        <!-- 1Pの設定パネル (初期状態では active) -->
+        <div id="p1Box" class="player-box tab-panel active">
+          <!-- <h2>1P</h2>  ←タブになったので不要に -->
+          <label>メインファイター </label>
+          <input id="p1Char" type="text" value="lucas" list="character-suggestions" />
+          <label>メインファイターカラー</label>
           <input id="p1Color" type="number" min="1" max="8" value="1" />
+          
+          <label style="color: #419393; font-weight: bold;">↳ ストックアイコン① </label>
+          <input id="p1Icon1" type="text" value="" list="character-suggestions" placeholder="例: mario" />
+          <label style="color: #419393;">↳ アイコン① カラー</label>
+          <input id="p1Icon1Color" type="number" min="1" max="8" value="1" />
+
+          <label style="color: #419393; font-weight: bold;">↳ ストックアイコン② </label>
+          <input id="p1Icon2" type="text" value="" list="character-suggestions" placeholder="例: luigi" />
+          <label style="color: #419393;">↳ アイコン② カラー</label>
+          <input id="p1Icon2Color" type="number" min="1" max="8" value="1" />
+
           <label>プレイヤー名</label>
           <input id="p1Name" type="text" value="ほむら" />
           <label>チーム名</label>
@@ -32,20 +52,31 @@
 
           <div class="sliders">
             <label>倍率</label>
-            <input id="scaleSlider1" type="range" min="0.5" max="2.0" step="0.01" value="1" />
+            <input id="scaleSlider1" type="range" min="0.1" max="5.0" step="0.01" value="1" />
             <label>横オフセット</label>
-            <input id="xOffsetSlider1" type="range" min="-200" max="200" step="1" value="0" />
+            <input id="xOffsetSlider1" type="range" min="-1000" max="1000" step="1" value="0" />
             <label>縦オフセット</label>
-            <input id="yOffsetSlider1" type="range" min="-200" max="200" step="1" value="0" />
+            <input id="yOffsetSlider1" type="range" min="-1000" max="1000" step="1" value="0" />
           </div>
         </div>
 
-        <div class="player-box">
-          <h2>2P</h2>
-          <label>キャラ</label>
-          <input id="p2Char" type="text" value="steve" />
-          <label>カラー</label>
+        <!-- 2Pの設定パネル -->
+        <div id="p2Box" class="player-box tab-panel">
+          <label>メインファイター</label>
+          <input id="p2Char" type="text" value="steve" list="character-suggestions" />
+          <label>メインファイターカラー</label>
           <input id="p2Color" type="number" min="1" max="8" value="1" />
+          
+          <label style="color: #419393; font-weight: bold;">↳ ストックアイコン① </label>
+          <input id="p2Icon1" type="text" value="" list="character-suggestions" placeholder="例: steve" />
+          <label style="color: #419393;">↳ アイコン① カラー</label>
+          <input id="p2Icon1Color" type="number" min="1" max="8" value="1" />
+
+          <label style="color: #419393; font-weight: bold;">↳ ストックアイコン② </label>
+          <input id="p2Icon2" type="text" value="" list="character-suggestions" placeholder="例: alex" />
+          <label style="color: #419393;">↳ アイコン② カラー</label>
+          <input id="p2Icon2Color" type="number" min="1" max="8" value="1" />
+
           <label>プレイヤー名</label>
           <input id="p2Name" type="text" value="HOMURA" />
           <label>チーム名</label>
@@ -53,33 +84,52 @@
 
           <div class="sliders">
             <label>倍率</label>
-            <input id="scaleSlider2" type="range" min="0.5" max="2.0" step="0.01" value="1" />
+            <input id="scaleSlider2" type="range" min="0.1" max="5.0" step="0.01" value="1" />
             <label>横オフセット</label>
-            <input id="xOffsetSlider2" type="range" min="-200" max="200" step="1" value="0" />
+            <input id="xOffsetSlider2" type="range" min="-1000" max="1000" step="1" value="0" />
             <label>縦オフセット</label>
-            <input id="yOffsetSlider2" type="range" min="-200" max="200" step="1" value="0" />
+            <input id="yOffsetSlider2" type="range" min="-1000" max="1000" step="1" value="0" />
           </div>
         </div>
 
-        <div class="match-box">
-          <h2>大会情報</h2>
+        <!-- 大会情報パネル -->
+        <div id="matchBox" class="match-box tab-panel">
           <label>開催回</label>
           <input id="matchNum" type="text" value="SAITAMA SMASH AYA #3" />
           <label>ラウンド</label>
           <input id="round" type="text" value="WINNERS ROUND 4" />
           <label>日付</label>
           <input id="date" type="text" value="2025/10/14" />
-<button id="updateBtn" class="update-btn">プレビュー更新</button>
-<button id="exportBtn" class="export-btn">PNG書き出し</button>
+          
+          <button id="updateBtn" class="update-btn">プレビュー更新</button>
+          <button id="exportBtn" class="export-btn">PNG書き出し</button>
 
-<!-- 🟣 新しく追加：背景切り替え -->
-<div style="margin-top: 10px; display: flex; justify-content: space 3px;">
-  <button id="mainBtn" style="background:#6F5C87; color:#E8FAFC; ">本戦用</button>
-  <button id="preBtn" style="background:#7CA1D6; color:#FFF3FF; ">予選用</button>
-</div>
+          <div class="bg-buttons" style="margin-top: 10px; display: flex; gap: 10px;">
+            <button id="mainBtn" style="background:#6F5C87; color:#E8FAFC; border:none; padding:10px; border-radius:4px;">本戦用</button>
+            <button id="preBtn" style="background:#7CA1D6; color:#FFF3FF; border:none; padding:10px; border-radius:4px;">予選用</button>
+          </div>
+        </div>
+
       </section>
 
       <section id="canvas-container"></section>
     </main>
+
+    <!-- ★追加：タブ切り替え用のスクリプト -->
+    <script>
+      function openTab(evt, tabId) {
+        // 全てのパネルを非表示にする
+        const panels = document.querySelectorAll(".tab-panel");
+        panels.forEach((panel) => panel.classList.remove("active"));
+
+        // 全てのタブボタンの色を元に戻す
+        const btns = document.querySelectorAll(".tab-btn");
+        btns.forEach((btn) => btn.classList.remove("active"));
+
+        // クリックされたタブのパネルを表示し、ボタンをアクティブな色にする
+        document.getElementById(tabId).classList.add("active");
+        evt.currentTarget.classList.add("active");
+      }
+    </script>
   </body>
 </html>

@@ -2,7 +2,9 @@
 // Smash Bros Thumbnail Generator
 // ===============================
 
+// ★修正：4つの独立したアイコン用変数を用意
 let bgImg, fgImg, char1Img = null, char2Img = null;
+let p1Icon1Img = null, p1Icon2Img = null, p2Icon1Img = null, p2Icon2Img = null;
 let currentMode = "main"; // 'main' = 本戦, 'pre' = 予選
 
 // =========================================================
@@ -26,6 +28,22 @@ const CONFIG = {
 };
 
 // =========================================================
+// ★追加：予測変換用のキャラクターリスト（よく使う英語名）
+// =========================================================
+const SMASH_CHARACTERS = [
+  "mario", "donkey_kong", "link", "samus", "dark_samus", "yoshi", "kirby", "fox", "pikachu", "luigi",
+  "ness", "captain_falcon", "jigglypuff", "peach", "daisy", "bowser", "ice_climbers", "sheik", "zelda",
+  "dr_mario", "pichu", "falco", "marth", "lucina", "young_link", "ganondorf", "mewtwo", "roy", "chrom",
+  "mr_game_and_watch", "meta_knight", "pit", "dark_pit", "zero_suit_samus", "wario", "snake", "ike",
+  "pokemon_trainer", "diddy_kong", "lucas", "sonic", "king_dedede", "olimar", "lucario", "rob", "toon_link",
+  "wolf", "villager", "mega_man", "wii_fit_trainer", "rosalina_and_luma", "little_mac", "greninja", "palutena",
+  "pac_man", "robin", "shulk", "bowser_jr", "duck_hunt", "ryu", "ken", "cloud", "corrin", "bayonetta", "inkling",
+  "ridley", "simon", "richter", "king_k_rool", "isabelle", "incineroar", "piranha_plant", "joker", "hero",
+  "banjo_and_kazooie", "terry", "byleth", "min_min", "steve", "sephiroth", "pyra", "mythra", "kazuya", "sora",
+  "mii_brawler", "mii_swordfighter", "mii_gunner", "homura", "hikari"
+];
+
+// =========================================================
 // 🔧 保存用キャラ補正データ
 // =========================================================
 let charAdjustments = JSON.parse(
@@ -36,12 +54,9 @@ let charAdjustments = JSON.parse(
 // 🟣 ver1.1.0 追加：ローカル立ち絵キャラ定義
 // =========================================================
 const LOCAL_CHARACTER_CONFIG = {
-  // カラー非対応
   mii_brawler: { hasColor: false },
   mii_swordfighter: { hasColor: false },
   mii_gunner: { hasColor: false },
-
-  // 将来用（現時点では assets に無くても問題なし）
   mythra: { hasColor: true },
   pyra: { hasColor: true },
 };
@@ -63,6 +78,9 @@ function setup() {
   imageMode(CORNER);
   textAlign(CENTER, BASELINE);
   noLoop();
+
+  // ★追加：予測変換リストをHTMLに自動生成する処理を呼び出す
+  setupAutocomplete();
 
   document.getElementById("updateBtn").addEventListener("click", () => {
     loadCharacterImages();
@@ -87,6 +105,20 @@ function setup() {
 }
 
 // =========================================================
+// ★追加：予測変換リスト作成関数
+// =========================================================
+function setupAutocomplete() {
+  const dataList = document.createElement('datalist');
+  dataList.id = 'character-suggestions';
+  SMASH_CHARACTERS.forEach(char => {
+    const option = document.createElement('option');
+    option.value = char;
+    dataList.appendChild(option);
+  });
+  document.body.appendChild(dataList);
+}
+
+// =========================================================
 // 本戦・予選モード切り替え
 // =========================================================
 function switchMode(mode) {
@@ -101,7 +133,7 @@ function switchMode(mode) {
   } else {
     bgImg = loadImage("assets/oku2.png", redraw);
     fgImg = loadImage("assets/temae2.png", redraw);
-    CONFIG.colorTeam = "#D9EF59"; // チーム名は共通
+    CONFIG.colorTeam = "#D9EF59";
     CONFIG.colorPlayer = "#FFF3FF";
     CONFIG.colorSmall = "#FFF3FF";
   }
@@ -159,7 +191,6 @@ function saveAdjustment(num) {
 function getCharacterImagePath(char, color) {
   const localConfig = LOCAL_CHARACTER_CONFIG[char];
 
-  // ローカル立ち絵を使うキャラ
   if (localConfig) {
     if (localConfig.hasColor) {
       return `assets/characters/${char}_${color}.png`;
@@ -168,7 +199,6 @@ function getCharacterImagePath(char, color) {
     }
   }
 
-  // ver1.0.0 の挙動（Render 経由）を完全維持
   const proxy =
     location.hostname === "localhost"
       ? "http://localhost:3000"
@@ -180,7 +210,21 @@ function getCharacterImagePath(char, color) {
 }
 
 // =========================================================
-// キャラ画像読み込み＋補正復元
+// ★追加：ストックアイコンのパス取得
+// =========================================================
+function getStockIconPath(char, color) {
+  const proxy =
+    location.hostname === "localhost"
+      ? "http://localhost:3000"
+      : "https://smash-thumb-1.onrender.com";
+
+  return `${proxy}/stock-icon?char=${encodeURIComponent(
+    char
+  )}&color=${encodeURIComponent(color)}`;
+}
+
+// =========================================================
+// キャラ画像・各種アイコン読み込み＋補正復元
 // =========================================================
 function loadCharacterImages() {
   const load = (num, char, color, setter) => {
@@ -204,25 +248,28 @@ function loadCharacterImages() {
       adj?.yOffset ?? 0;
   };
 
-  load(
-    1,
-    getVal("p1Char"),
-    getVal("p1Color"),
-    (img) => {
-      char1Img = img;
-      redraw();
+  // アイコン読み込み用のヘルパー（空欄なら即nullにする）
+  const loadIcon = (char, color, setter) => {
+    if (!char) {
+      setter(null);
+      return;
     }
-  );
+    const src = getStockIconPath(char, color);
+    loadImage(src, setter, () => {
+      console.warn("❌ Icon load failed:", src);
+      setter(null);
+    });
+  };
 
-  load(
-    2,
-    getVal("p2Char"),
-    getVal("p2Color"),
-    (img) => {
-      char2Img = img;
-      redraw();
-    }
-  );
+  // 1P・2Pの立ち絵読み込み
+  load(1, getVal("p1Char"), getVal("p1Color"), (img) => { char1Img = img; redraw(); });
+  load(2, getVal("p2Char"), getVal("p2Color"), (img) => { char2Img = img; redraw(); });
+
+  // ★修正：4つの独立したアイコン入力をそれぞれ読み込む
+  loadIcon(getVal("p1Icon1"), getVal("p1Icon1Color"), (img) => { p1Icon1Img = img; redraw(); });
+  loadIcon(getVal("p1Icon2"), getVal("p1Icon2Color"), (img) => { p1Icon2Img = img; redraw(); });
+  loadIcon(getVal("p2Icon1"), getVal("p2Icon1Color"), (img) => { p2Icon1Img = img; redraw(); });
+  loadIcon(getVal("p2Icon2"), getVal("p2Icon2Color"), (img) => { p2Icon2Img = img; redraw(); });
 }
 
 // =========================================================
@@ -238,6 +285,15 @@ function draw() {
   drawCharacter(2, char2Img, CONFIG.rightCenterX);
 
   if (fgImg) image(fgImg, 0, 0, width, height);
+
+  // ★修正：プレイヤーごとのアイコン描画関数を呼び出す（位置は名前の少し上）
+  // ★修正：縦の高さは textBaseY + 100 に固定
+  const textBaseY = CONFIG.charCenterY - CONFIG.charH / 2 - CONFIG.nameOffsetAboveChar;
+  const iconY = textBaseY + 120;
+
+  // ★横の位置：画面の中央(width / 2) から、左右に「200」ずつ離す
+  drawPlayerIcons(p1Icon1Img, p1Icon2Img, (width / 2) - 200, iconY, -1);
+  drawPlayerIcons(p2Icon1Img, p2Icon2Img, (width / 2) + 200, iconY, 1);
 
   drawAllText();
 }
@@ -268,6 +324,34 @@ function drawCharacter(num, img, baseX) {
   );
 }
 
+// =========================================================
+// ★追加：プレイヤーごとの複数アイコン自動整列描画
+// =========================================================
+// =========================================================
+// ★修正：①を固定し、指定された方向（左か右）に②を配置する
+// =========================================================
+function drawPlayerIcons(img1, img2, centerX, baseY, direction = 1) {
+  const size = 100; // 
+  const gap = 12;   // アイコン同士の隙間
+
+  let activeImgs = [];
+  if (img1) activeImgs.push(img1);
+  if (img2) activeImgs.push(img2);
+
+  // ①の絶対位置（不動のアンカー）
+  const startX = centerX - size / 2;
+
+  if (activeImgs.length >= 1) {
+    // 1個目のアイコンを描画
+    image(activeImgs[0], startX, baseY - size / 2, size, size);
+  }
+  
+  if (activeImgs.length >= 2) {
+    // 2個目のアイコンを、指定された方向（-1なら左、1なら右）に配置
+    const offsetX = (size + gap) * direction;
+    image(activeImgs[1], startX + offsetX, baseY - size / 2, size, size);
+  }
+}
 // =========================================================
 // テキスト描画
 // =========================================================
@@ -344,7 +428,6 @@ function drawNameBlock(centerX, baseY, teamText, playerText) {
   drawingContext.letterSpacing = 0;
   pop();
 }
-
 
 // =========================================================
 // 値取得

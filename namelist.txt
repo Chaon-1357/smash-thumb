@@ -35,7 +35,7 @@ zero_suit_samus
 wario
 snake
 ike
-pokemon_trainer		(squirtleなどの単体の画像はありません。)
+pokemon_trainer	(squirtleなどの単体の画像はありません。)
 diddy_kong
 lucas
 sonic
@@ -81,7 +81,7 @@ byleth
 minmin
 steve
 sephiroth
-pyra
+pyra	(mythra含め、単体の画像はありません)
 kazuya
 sora
 
