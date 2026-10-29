@@ -40,6 +40,9 @@
           <button class="tab-btn" role="tab" data-tab="matchBox">大会情報</button>
         </div>
 
+        <!-- 3つのパネルは同じ場所に重ねて置き、タブを切り替えても高さが変わらないようにする -->
+        <div class="tab-panels">
+
         <!-- 1Pの設定パネル (初期状態では active) -->
         <div id="p1Box" class="player-box tab-panel active" role="tabpanel">
           <div class="row">
@@ -151,6 +154,8 @@
           <label for="date">日付</label>
           <input id="date" type="text" value="2025/10/14" />
           <button id="todayBtn" class="sub-btn">今日の日付を入れる</button>
+        </div>
+
         </div>
 
         <button id="clearBtn" class="clear-btn">入力内容を初期状態に戻す</button>

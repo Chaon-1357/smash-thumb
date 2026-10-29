@@ -19,6 +19,11 @@
   box-sizing: border-box;
 }
 
+/* スクロールバーが出たり消えたりしても横幅が変わらないよう、常に場所を確保する */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   padding: 10px;
@@ -274,13 +279,20 @@ button:hover {
   border-color: var(--accent);
 }
 
-/* パネルの表示・非表示 */
+/* パネルの表示・非表示
+   display:none だと一番高いパネル以外に切り替えた時に高さが変わるので、
+   全パネルを同じマスに重ね、見えないだけにする（高さは一番高いパネルに揃う） */
+.tab-panels {
+  display: grid;
+}
+
 .tab-panel {
-  display: none;
+  grid-area: 1 / 1;
+  visibility: hidden;
 }
 
 .tab-panel.active {
-  display: block;
+  visibility: visible;
 }
 
 /* ========================
