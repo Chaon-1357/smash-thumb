@@ -2,6 +2,7 @@
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";
+import fs from "fs";
 import path from "path";
 import url from "url";
 
@@ -13,43 +14,29 @@ const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
 // このフォルダの中にあるHTMLや画像をサーバーとして配信する
 app.use(express.static(__dirname));
+app.use(express.json({ limit: "2kb" }));
 
 const USER_AGENT = "SmashThumbGenerator/1.0";
 const CACHE_HEADER = "public, max-age=86400"; // ブラウザ側に1日キャッシュさせる
 
 // =========================================================
-// 英語キャラ名 -> 日本語キャラ名（SmashWiki用）の変換辞書（全86キャラ完全版）
+// キャラ名辞書（characters.json をブラウザ側と共有）
 // =========================================================
-const EN_TO_JA = {
-  "mario": "マリオ", "donkey_kong": "ドンキーコング", "link": "リンク", "samus": "サムス", "dark_samus": "ダークサムス",
-  "yoshi": "ヨッシー", "kirby": "カービィ", "fox": "フォックス", "pikachu": "ピカチュウ", "luigi": "ルイージ",
-  "ness": "ネス", "captain_falcon": "キャプテン・ファルコン", "jigglypuff": "プリン", "peach": "ピーチ", "daisy": "デイジー",
-  "bowser": "クッパ", "ice_climbers": "アイスクライマー", "sheik": "シーク", "zelda": "ゼルダ", "dr_mario": "Dr.マリオ",
-  "pichu": "ピチュー", "falco": "ファルコ", "marth": "マルス", "lucina": "ルキナ", "young_link": "こどもリンク",
-  "ganondorf": "ガノンドロフ", "mewtwo": "ミュウツー", "roy": "ロイ", "chrom": "クロム", "mr_game_and_watch": "Mr.ゲーム&ウォッチ",
-  "meta_knight": "メタナイト", "pit": "ピット", "dark_pit": "ブラックピット", "zero_suit_samus": "ゼロスーツサムス", "wario": "ワリオ",
-  "snake": "スネーク", "ike": "アイク", "pokemon_trainer": "ポケモントレーナー", "diddy_kong": "ディディーコング", "lucas": "リュカ",
-  "sonic": "ソニック", "king_dedede": "デデデ", "olimar": "ピクミン&オリマー", "lucario": "ルカリオ", "rob": "ロボット",
-  "toon_link": "トゥーンリンク", "wolf": "ウルフ", "villager": "むらびと", "mega_man": "ロックマン", "wii_fit_trainer": "Wii Fitトレーナー",
-  "rosalina_and_luma": "ロゼッタ&チコ", "little_mac": "リトル・マック", "greninja": "ゲッコウガ", "palutena": "パルテナ", "pac_man": "パックマン",
-  "robin": "ルフレ", "shulk": "シュルク", "bowser_jr": "クッパJr.", "duck_hunt": "ダックハント", "ryu": "リュウ",
-  "ken": "ケン", "cloud": "クラウド", "corrin": "カムイ", "bayonetta": "ベヨネッタ", "inkling": "インクリング",
-  "ridley": "リドリー", "simon": "シモン", "richter": "リヒター", "king_k_rool": "キングクルール", "isabelle": "しずえ",
-  "incineroar": "ガオガエン", "piranha_plant": "パックンフラワー", "joker": "ジョーカー", "hero": "勇者", "banjo_and_kazooie": "バンジョー&カズーイ",
-  "terry": "テリー", "byleth": "ベレト", "min_min": "ミェンミェン", "steve": "スティーブ", "sephiroth": "セフィロス",
-  "pyra": "ホムラ", "mythra": "ヒカリ", "pyra_and_mythra": "ホムラ&ヒカリ", "kazuya": "カズヤ", "sora": "ソラ",
-  "mii_brawler": "Mii格闘", "mii_swordfighter": "Mii剣術", "mii_gunner": "Mii射撃"
-};
+const CHARACTERS = JSON.parse(fs.readFileSync(path.join(__dirname, "characters.json"), "utf-8"));
+const EN_TO_JA = CHARACTERS.fighters;
+const OFFICIAL_SLUGS = CHARACTERS.officialSlugs;
 
 // =========================================================
-// 表記ゆれ対策
+// 表記ゆれ対策（sketch.js の normalizeChar と同じ処理にすること）
 // =========================================================
-// 入力された名前を "小文字 + アンダースコア区切り" の正規形に揃える
-// 例: "Mr. Game & Watch" -> "mr_game_and_watch"
+// 例: "Mr. Game & Watch" -> "mr_game_and_watch"、"まりお" -> "マリオ"
 function normalizeChar(char) {
   return String(char)
+    .normalize("NFKC") // 全角英数・記号を半角に
     .trim()
     .toLowerCase()
+    .replace(/[ぁ-ゖ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60)) // ひらがな -> カタカナ
+    .replace(/[・･]/g, "")
     .replace(/&/g, "_and_")
     .replace(/\./g, "")
     .replace(/[\s-]+/g, "_")
@@ -57,26 +44,19 @@ function normalizeChar(char) {
     .replace(/^_|_$/g, "");
 }
 
-// 別名 -> 正規名（予測変換・SmashWiki側の名前に統一する）
-const ALIASES = {
-  "minmin": "min_min",
-  "black_pit": "dark_pit",
-  "ice_climber": "ice_climbers",
-  "boeser_jr": "bowser_jr",
-  "homura": "pyra",
-  "hikari": "mythra",
-  "pyra_mythra": "pyra_and_mythra",
-};
-
-// 公式サイトの画像URLで名前が異なるもの（正規名 -> 公式URL上の名前）
-const OFFICIAL_SLUGS = {
-  "min_min": "minmin",
-  "pyra_and_mythra": "pyra",
-};
+// 英語名・日本語名・別名 -> 正規名 の検索表
+const NAME_LOOKUP = {};
+for (const [en, ja] of Object.entries(EN_TO_JA)) {
+  NAME_LOOKUP[normalizeChar(en)] = en;
+  NAME_LOOKUP[normalizeChar(ja)] = en;
+}
+for (const [alias, en] of Object.entries(CHARACTERS.aliases)) {
+  NAME_LOOKUP[normalizeChar(alias)] = en;
+}
 
 function canonicalChar(char) {
   const c = normalizeChar(char);
-  return ALIASES[c] || c;
+  return NAME_LOOKUP[c] || c;
 }
 
 // 一度見つかったURLは覚えておき、2回目以降の試行錯誤を省く
@@ -203,6 +183,118 @@ app.get("/stock-icon", async (req, res) => {
   } catch (err) {
     console.error("❌ Stock Icon fetch failed:", err);
     res.status(500).send("Icon fetch failed");
+  }
+});
+
+// =========================================================
+// キャラごとの倍率・位置（全端末で共有）
+// =========================================================
+// UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN が設定されていれば Upstash Redis に保存する。
+// 未設定ならサーバー内の adjustments.json に保存する（Renderの無料プランでは再起動で消える）。
+const KV_URL = process.env.UPSTASH_REDIS_REST_URL;
+const KV_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const KV_HASH = "charAdjustments";
+const ADJ_FILE = path.join(__dirname, "adjustments.json");
+
+const ADJ_LIMITS = {
+  scale: [0.1, 5],
+  xOffset: [-1000, 1000],
+  yOffset: [-1000, 1000],
+};
+
+async function kv(command) {
+  const resp = await fetch(KV_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${KV_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify(command),
+  });
+  if (!resp.ok) throw new Error(`KV ${resp.status}`);
+  return (await resp.json()).result;
+}
+
+function createFileStore() {
+  let data = {};
+  try {
+    data = JSON.parse(fs.readFileSync(ADJ_FILE, "utf-8"));
+  } catch (err) {}
+  const persist = () => fs.promises.writeFile(ADJ_FILE, JSON.stringify(data, null, 2));
+
+  return {
+    async getAll() { return data; },
+    async set(c, adj) { data[c] = adj; await persist(); },
+    async remove(c) { delete data[c]; await persist(); },
+  };
+}
+
+const adjustmentStore = KV_URL && KV_TOKEN
+  ? {
+      async getAll() {
+        const flat = (await kv(["HGETALL", KV_HASH])) || [];
+        const result = {};
+        for (let i = 0; i < flat.length; i += 2) {
+          try {
+            result[flat[i]] = JSON.parse(flat[i + 1]);
+          } catch (err) {}
+        }
+        return result;
+      },
+      async set(c, adj) { await kv(["HSET", KV_HASH, c, JSON.stringify(adj)]); },
+      async remove(c) { await kv(["HDEL", KV_HASH, c]); },
+    }
+  : createFileStore();
+
+console.log(`💾 Adjustments store: ${KV_URL && KV_TOKEN ? "Upstash Redis" : "adjustments.json"}`);
+
+// 実在するファイターだけ受け付ける
+function adjustmentChar(raw) {
+  const c = canonicalChar(raw);
+  return Object.hasOwn(EN_TO_JA, c) ? c : null;
+}
+
+function validAdjustment(body) {
+  const adj = {};
+  for (const [key, [min, max]] of Object.entries(ADJ_LIMITS)) {
+    const v = Number(body?.[key]);
+    if (!Number.isFinite(v)) return null;
+    adj[key] = Math.min(max, Math.max(min, v));
+  }
+  return adj;
+}
+
+app.get("/adjustments", async (req, res) => {
+  try {
+    res.set("Cache-Control", "no-store");
+    res.json(await adjustmentStore.getAll());
+  } catch (err) {
+    console.error("❌ Adjustments load failed:", err);
+    res.status(500).json({});
+  }
+});
+
+app.put("/adjustments/:char", async (req, res) => {
+  const c = adjustmentChar(req.params.char);
+  const adj = validAdjustment(req.body);
+  if (!c || !adj) return res.status(400).send("Invalid adjustment");
+
+  try {
+    await adjustmentStore.set(c, adj);
+    res.json({ [c]: adj });
+  } catch (err) {
+    console.error("❌ Adjustment save failed:", err);
+    res.status(500).send("Save failed");
+  }
+});
+
+app.delete("/adjustments/:char", async (req, res) => {
+  const c = adjustmentChar(req.params.char);
+  if (!c) return res.status(400).send("Invalid character");
+
+  try {
+    await adjustmentStore.remove(c);
+    res.status(204).end();
+  } catch (err) {
+    console.error("❌ Adjustment delete failed:", err);
+    res.status(500).send("Delete failed");
   }
 });
 

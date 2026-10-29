@@ -21,8 +21,16 @@ const CONFIG = {
   colorPlayer: "#E8FAFC",
   colorSmall: "#E8FAFC",
   blockGap: 14,
+  nameLetterSpacing: "2px",  // チーム名・プレイヤー名の字間
+  smallLetterSpacing: "1px", // 日付・ラウンド・開催回の字間
   bottomLeft: { x: 140, y: 1020 },
   bottomRight: { x: 1780, y: 1020 },
+  // 立ち絵を描く範囲（temae.png の枠の内側 + 白枠の下に隠れる余白）
+  // 倍率を上げても隣のプレイヤーの枠にはみ出さないよう、この範囲で切り抜く
+  frames: {
+    1: { x: 96, y: 184, w: 734, h: 746 },
+    2: { x: 1092, y: 184, w: 734, h: 746 },
+  },
 };
 
 // どの端末で書き出しても同じ見た目になるよう、Webフォントを明示する
@@ -34,32 +42,9 @@ const MODES = {
   pre: { bg: "assets/oku2.png", fg: "assets/temae2.png", colorPlayer: "#FFF3FF", colorSmall: "#FFF3FF" },
 };
 
-// =========================================================
-// 予測変換用のキャラクターリスト
-// =========================================================
-const SMASH_CHARACTERS = [
-  "mario", "donkey_kong", "link", "samus", "dark_samus", "yoshi", "kirby", "fox", "pikachu", "luigi",
-  "ness", "captain_falcon", "jigglypuff", "peach", "daisy", "bowser", "ice_climbers", "sheik", "zelda",
-  "dr_mario", "pichu", "falco", "marth", "lucina", "young_link", "ganondorf", "mewtwo", "roy", "chrom",
-  "mr_game_and_watch", "meta_knight", "pit", "dark_pit", "zero_suit_samus", "wario", "snake", "ike",
-  "pokemon_trainer", "diddy_kong", "lucas", "sonic", "king_dedede", "olimar", "lucario", "rob", "toon_link",
-  "wolf", "villager", "mega_man", "wii_fit_trainer", "rosalina_and_luma", "little_mac", "greninja", "palutena",
-  "pac_man", "robin", "shulk", "bowser_jr", "duck_hunt", "ryu", "ken", "cloud", "corrin", "bayonetta", "inkling",
-  "ridley", "simon", "richter", "king_k_rool", "isabelle", "incineroar", "piranha_plant", "joker", "hero",
-  "banjo_and_kazooie", "terry", "byleth", "min_min", "steve", "sephiroth", "pyra", "mythra", "pyra_and_mythra",
-  "kazuya", "sora", "mii_brawler", "mii_swordfighter", "mii_gunner"
-];
-
-// 別名 -> 正規名（server.js の ALIASES と揃えること）
-const ALIASES = {
-  "minmin": "min_min",
-  "black_pit": "dark_pit",
-  "ice_climber": "ice_climbers",
-  "boeser_jr": "bowser_jr",
-  "homura": "pyra",
-  "hikari": "mythra",
-  "pyra_mythra": "pyra_and_mythra",
-};
+// キャラ名辞書（characters.json をサーバーと共有。preload で読み込む）
+let characterData;
+let NAME_LOOKUP = {};
 
 // =========================================================
 // 🟣 ローカル立ち絵キャラ定義
@@ -125,6 +110,7 @@ const storage = {
 };
 
 let charAdjustments = storage.get("charAdjustments", {});
+const adjustmentSyncTimers = {};
 
 // =========================================================
 // 画像読み込み
@@ -133,6 +119,7 @@ function preload() {
   currentMode = storage.get("thumbMode", "main") === "pre" ? "pre" : "main";
   bgImg = loadImage(MODES[currentMode].bg);
   fgImg = loadImage(MODES[currentMode].fg);
+  characterData = loadJSON("characters.json");
 }
 
 // =========================================================
@@ -145,6 +132,7 @@ function setup() {
   textAlign(CENTER, BASELINE);
   noLoop();
 
+  buildNameLookup();
   setupAutocomplete();
   restoreFields();
   applyModeStyle();
@@ -155,18 +143,26 @@ function setup() {
 
   Object.keys(SLOTS).forEach((id) => loadSlot(id));
   refreshText();
+
+  // 他の端末で調整した倍率・位置を取り込む（タブに戻ってきた時も）
+  syncAdjustments();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") syncAdjustments();
+  });
 }
 
 // =========================================================
-// 予測変換リスト作成関数
+// 予測変換リスト作成関数（英語名・日本語名の両方）
 // =========================================================
 function setupAutocomplete() {
   const dataList = document.createElement("datalist");
   dataList.id = "character-suggestions";
-  SMASH_CHARACTERS.forEach((char) => {
-    const option = document.createElement("option");
-    option.value = char;
-    dataList.appendChild(option);
+  Object.entries(characterData.fighters).forEach(([en, ja]) => {
+    [en, ja].forEach((name) => {
+      const option = document.createElement("option");
+      option.value = name;
+      dataList.appendChild(option);
+    });
   });
   document.body.appendChild(dataList);
 }
@@ -345,6 +341,7 @@ function saveAdjustment(num) {
 
   charAdjustments[charName] = getAdjustment(num);
   storage.set("charAdjustments", charAdjustments);
+  pushAdjustment(charName);
 }
 
 function restoreSliders(num) {
@@ -357,25 +354,96 @@ function restoreSliders(num) {
 }
 
 function resetAdjustment(num) {
-  delete charAdjustments[canonicalChar(getVal(`p${num}Char`))];
+  const charName = canonicalChar(getVal(`p${num}Char`));
+  delete charAdjustments[charName];
   storage.set("charAdjustments", charAdjustments);
+  pushAdjustment(charName);
   restoreSliders(num);
   redraw();
 }
 
 // =========================================================
-// 名前の表記ゆれ対策（例: "Mr. Game & Watch" -> "mr_game_and_watch"）
+// 共有サーバーとの同期（全端末で同じ倍率・位置を使う）
 // =========================================================
-function canonicalChar(char) {
-  const c = String(char)
+// スライダーを動かし終わってから0.5秒後に送る
+function pushAdjustment(charName) {
+  if (!characterData.fighters[charName]) return;
+
+  clearTimeout(adjustmentSyncTimers[charName]);
+  adjustmentSyncTimers[charName] = setTimeout(() => {
+    const adj = charAdjustments[charName];
+    const options = adj
+      ? { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(adj) }
+      : { method: "DELETE" };
+
+    fetch(`${getProxy()}/adjustments/${encodeURIComponent(charName)}`, options)
+      .then((resp) => {
+        if (!resp.ok) throw new Error(resp.status);
+      })
+      .catch((err) => console.warn("⚠️ Adjustment sync failed:", charName, err));
+  }, 500);
+}
+
+async function syncAdjustments() {
+  let remote;
+  try {
+    const resp = await fetch(`${getProxy()}/adjustments`, { cache: "no-store" });
+    if (!resp.ok) return;
+    remote = await resp.json();
+  } catch (err) {
+    console.warn("⚠️ Adjustment sync failed:", err);
+    return; // 繋がらない時はこの端末の保存値だけで動く
+  }
+
+  // サーバーの値を優先し、この端末にしか無い値はサーバーに送る
+  const local = charAdjustments;
+  charAdjustments = remote;
+  Object.entries(local).forEach(([name, adj]) => {
+    const c = canonicalChar(name);
+    if (!charAdjustments[c] && characterData.fighters[c]) {
+      charAdjustments[c] = adj;
+      pushAdjustment(c);
+    }
+  });
+  storage.set("charAdjustments", charAdjustments);
+
+  restoreSliders(1);
+  restoreSliders(2);
+  redraw();
+}
+
+// =========================================================
+// 名前の表記ゆれ対策（server.js の normalizeChar と同じ処理にすること）
+// =========================================================
+// 例: "Mr. Game & Watch" -> "mr_game_and_watch"、"まりお" -> "マリオ"
+function normalizeChar(char) {
+  return String(char)
+    .normalize("NFKC") // 全角英数・記号を半角に
     .trim()
     .toLowerCase()
+    .replace(/[ぁ-ゖ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60)) // ひらがな -> カタカナ
+    .replace(/[・･]/g, "")
     .replace(/&/g, "_and_")
     .replace(/\./g, "")
     .replace(/[\s-]+/g, "_")
     .replace(/_+/g, "_")
     .replace(/^_|_$/g, "");
-  return ALIASES[c] || c;
+}
+
+// 英語名・日本語名・別名 -> 正規名 の検索表
+function buildNameLookup() {
+  Object.entries(characterData.fighters).forEach(([en, ja]) => {
+    NAME_LOOKUP[normalizeChar(en)] = en;
+    NAME_LOOKUP[normalizeChar(ja)] = en;
+  });
+  Object.entries(characterData.aliases).forEach(([alias, en]) => {
+    NAME_LOOKUP[normalizeChar(alias)] = en;
+  });
+}
+
+function canonicalChar(char) {
+  const c = normalizeChar(char);
+  return NAME_LOOKUP[c] || c;
 }
 
 // =========================================================
@@ -554,6 +622,12 @@ function drawCharacter(num, img, baseX) {
   const aspect = img.width / img.height;
   const h = CONFIG.charH * adj.scale;
   const w = h * aspect;
+  const frame = CONFIG.frames[num];
+
+  drawingContext.save();
+  drawingContext.beginPath();
+  drawingContext.rect(frame.x, frame.y, frame.w, frame.h);
+  drawingContext.clip();
 
   image(
     img,
@@ -562,6 +636,8 @@ function drawCharacter(num, img, baseX) {
     w,
     h
   );
+
+  drawingContext.restore();
 }
 
 // =========================================================
@@ -614,7 +690,7 @@ function drawAllText() {
 
   textFont(FONT_SMALL);
   fill(CONFIG.colorSmall);
-  drawingContext.letterSpacing = "2px";
+  drawingContext.letterSpacing = CONFIG.smallLetterSpacing;
 
   textAlign(LEFT, BASELINE);
   textSize(dFont);
@@ -635,7 +711,7 @@ function drawAllText() {
 function drawNameBlock(centerX, baseY, teamText, playerText) {
   push();
 
-  drawingContext.letterSpacing = "2px";
+  drawingContext.letterSpacing = CONFIG.nameLetterSpacing;
   textFont(FONT_NAME);
 
   textSize(CONFIG.teamSize);

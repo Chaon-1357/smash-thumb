@@ -1,0 +1,42 @@
+{
+  "_comment": "fighters: 正規名(英語) -> 日本語名（SmashWikiのアイコン名と一致させる）。aliases: 別名 -> 正規名。officialSlugs: 公式サイトの画像URLで名前が異なるもの。名前はひらがな/カタカナ・全角/半角・大文字/小文字・空白や記号の違いを自動で吸収する。",
+  "fighters": {
+    "mario": "マリオ", "donkey_kong": "ドンキーコング", "link": "リンク", "samus": "サムス", "dark_samus": "ダークサムス",
+    "yoshi": "ヨッシー", "kirby": "カービィ", "fox": "フォックス", "pikachu": "ピカチュウ", "luigi": "ルイージ",
+    "ness": "ネス", "captain_falcon": "キャプテン・ファルコン", "jigglypuff": "プリン", "peach": "ピーチ", "daisy": "デイジー",
+    "bowser": "クッパ", "ice_climbers": "アイスクライマー", "sheik": "シーク", "zelda": "ゼルダ", "dr_mario": "Dr.マリオ",
+    "pichu": "ピチュー", "falco": "ファルコ", "marth": "マルス", "lucina": "ルキナ", "young_link": "こどもリンク",
+    "ganondorf": "ガノンドロフ", "mewtwo": "ミュウツー", "roy": "ロイ", "chrom": "クロム", "mr_game_and_watch": "Mr.ゲーム&ウォッチ",
+    "meta_knight": "メタナイト", "pit": "ピット", "dark_pit": "ブラックピット", "zero_suit_samus": "ゼロスーツサムス", "wario": "ワリオ",
+    "snake": "スネーク", "ike": "アイク", "pokemon_trainer": "ポケモントレーナー", "diddy_kong": "ディディーコング", "lucas": "リュカ",
+    "sonic": "ソニック", "king_dedede": "デデデ", "olimar": "ピクミン&オリマー", "lucario": "ルカリオ", "rob": "ロボット",
+    "toon_link": "トゥーンリンク", "wolf": "ウルフ", "villager": "むらびと", "mega_man": "ロックマン", "wii_fit_trainer": "Wii Fitトレーナー",
+    "rosalina_and_luma": "ロゼッタ&チコ", "little_mac": "リトル・マック", "greninja": "ゲッコウガ", "palutena": "パルテナ", "pac_man": "パックマン",
+    "robin": "ルフレ", "shulk": "シュルク", "bowser_jr": "クッパJr.", "duck_hunt": "ダックハント", "ryu": "リュウ",
+    "ken": "ケン", "cloud": "クラウド", "corrin": "カムイ", "bayonetta": "ベヨネッタ", "inkling": "インクリング",
+    "ridley": "リドリー", "simon": "シモン", "richter": "リヒター", "king_k_rool": "キングクルール", "isabelle": "しずえ",
+    "incineroar": "ガオガエン", "piranha_plant": "パックンフラワー", "joker": "ジョーカー", "hero": "勇者", "banjo_and_kazooie": "バンジョー&カズーイ",
+    "terry": "テリー", "byleth": "ベレト", "min_min": "ミェンミェン", "steve": "スティーブ", "sephiroth": "セフィロス",
+    "pyra": "ホムラ", "mythra": "ヒカリ", "pyra_and_mythra": "ホムラ&ヒカリ", "kazuya": "カズヤ", "sora": "ソラ",
+    "mii_brawler": "Mii格闘", "mii_swordfighter": "Mii剣術", "mii_gunner": "Mii射撃"
+  },
+  "aliases": {
+    "minmin": "min_min", "black_pit": "dark_pit", "ice_climber": "ice_climbers", "boeser_jr": "bowser_jr",
+    "homura": "pyra", "hikari": "mythra", "pyra_mythra": "pyra_and_mythra", "dk": "donkey_kong", "gnw": "mr_game_and_watch",
+    "ドンキー": "donkey_kong", "ダムス": "dark_samus", "ファルコン": "captain_falcon", "Cファルコン": "captain_falcon",
+    "アイクラ": "ice_climbers", "ドクター": "dr_mario", "ドクターマリオ": "dr_mario", "ドクマリ": "dr_mario",
+    "子供リンク": "young_link", "こどリン": "young_link", "ガノン": "ganondorf", "ミュウツ": "mewtwo",
+    "ゲムヲ": "mr_game_and_watch", "ゲーム&ウォッチ": "mr_game_and_watch", "メタナ": "meta_knight", "ブラピ": "dark_pit",
+    "ゼロサム": "zero_suit_samus", "ポケトレ": "pokemon_trainer", "ディディー": "diddy_kong", "デデデ大王": "king_dedede",
+    "オリマー": "olimar", "ピクオリ": "olimar", "ロボ": "rob", "トゥーン": "toon_link", "村人": "villager",
+    "フィットレ": "wii_fit_trainer", "Wii Fit": "wii_fit_trainer", "ロゼッタ": "rosalina_and_luma", "ロゼチコ": "rosalina_and_luma",
+    "マック": "little_mac", "クッパジュニア": "bowser_jr", "ジュニア": "bowser_jr", "ダックハントダック": "duck_hunt",
+    "ベヨ": "bayonetta", "イカ": "inkling", "クルール": "king_k_rool", "パックン": "piranha_plant", "バンカズ": "banjo_and_kazooie",
+    "ミェン": "min_min", "ホムヒカ": "pyra_and_mythra", "ホムラヒカリ": "pyra_and_mythra", "セフィ": "sephiroth",
+    "Mii格闘タイプ": "mii_brawler", "Mii剣術タイプ": "mii_swordfighter", "Mii射撃タイプ": "mii_gunner"
+  },
+  "officialSlugs": {
+    "min_min": "minmin",
+    "pyra_and_mythra": "pyra"
+  }
+}
