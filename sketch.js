@@ -137,6 +137,7 @@ function setup() {
   restoreFields();
   applyModeStyle();
 
+  setupColorWrap();
   setupInputs();
   setupSliders();
   setupButtons();
@@ -192,6 +193,31 @@ function setupInputs() {
     document.getElementById(slot.color).addEventListener("input", () => schedule(300));
     [id, slot.color].forEach((inputId) => {
       document.getElementById(inputId).addEventListener("change", () => schedule(0));
+    });
+  });
+}
+
+// =========================================================
+// カラー番号は1〜8で循環させる（1の下は8、8の上は1）
+// =========================================================
+// min/max を付けると端で止まってしまうので付けず、0 と 9 を置き換える
+// （他の入力処理より先に登録して、置き換え後の値が使われるようにする）
+const COLOR_MAX = 8;
+
+function setupColorWrap() {
+  Object.values(SLOTS).forEach((slot) => {
+    const el = document.getElementById(slot.color);
+    el.addEventListener("input", () => {
+      const v = parseInt(el.value, 10);
+      if (v === COLOR_MAX + 1) el.value = 1;
+      if (v === 0) el.value = COLOR_MAX;
+    });
+    // 手入力で範囲外になった時は、入力を終えた時点で1〜8に収める
+    el.addEventListener("change", () => {
+      const v = parseInt(el.value, 10);
+      if (!(v >= 1)) el.value = 1;
+      else if (v > COLOR_MAX) el.value = COLOR_MAX;
+      saveFields();
     });
   });
 }
