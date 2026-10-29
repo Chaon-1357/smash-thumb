@@ -1,0 +1,16 @@
+# Renderの無料プランは15分アクセスが無いとサーバーが停止し、次に開いた時に30秒〜1分待たされる。
+# 10分おきにアクセスして停止させないようにする（変換済み画像のキャッシュも残り続ける）。
+# GitHubの仕様上、実行が数分遅れることや、リポジトリに60日間更新が無いと自動で止まることがある。
+name: keep-alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - run: curl -fsS -m 120 -o /dev/null -w "%{http_code} %{time_total}s\n" https://smash-thumb-1.onrender.com/characters.json

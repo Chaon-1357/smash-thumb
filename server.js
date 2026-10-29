@@ -17,7 +17,7 @@ app.use(express.static(__dirname));
 app.use(express.json({ limit: "2kb" }));
 
 const USER_AGENT = "SmashThumbGenerator/1.0";
-const CACHE_HEADER = "public, max-age=86400"; // ブラウザ側に1日キャッシュさせる
+const CACHE_HEADER = "public, max-age=604800"; // ブラウザ側に7日キャッシュさせる
 
 // =========================================================
 // キャラ名辞書（characters.json をブラウザ側と共有）
@@ -62,8 +62,9 @@ function canonicalChar(char) {
 // =========================================================
 // 画像の変換とキャッシュ（読み込みを速くする）
 // =========================================================
-// 公式画像は1枚1〜3MBのPNGなので、WebPに変換してから返す（見た目はほぼ同じで1/5〜1/10程度になる）
-// sharp が使えない環境では元のPNGをそのまま返す
+// 公式画像は1枚1〜3MBのPNGなので、WebPに変換してキャッシュする（見た目はほぼ同じで1/5〜1/10程度になる）
+// 無料プランのCPUでは変換に数秒かかるため、初回は元のPNGをすぐ返し、変換は裏で行って2回目以降に使う
+// sharp が使えない環境では元のPNGのまま
 let sharp = null;
 try {
   sharp = (await import("sharp")).default;
@@ -74,7 +75,7 @@ try {
 async function compress(buffer) {
   if (!sharp) return { buffer, type: "image/png" };
   try {
-    const webp = await sharp(buffer).webp({ quality: 90, alphaQuality: 100 }).toBuffer();
+    const webp = await sharp(buffer).webp({ quality: 90, alphaQuality: 100, effort: 2 }).toBuffer();
     return { buffer: webp, type: "image/webp" };
   } catch (err) {
     return { buffer, type: "image/png" };
@@ -88,6 +89,11 @@ let imageCacheBytes = 0;
 const inflight = new Map(); // 同じ画像への同時リクエストを1回の取得にまとめる
 
 function cachePut(key, img) {
+  const prev = imageCache.get(key);
+  if (prev) {
+    imageCache.delete(key);
+    imageCacheBytes -= prev.buffer.length;
+  }
   imageCache.set(key, img);
   imageCacheBytes += img.buffer.length;
   while (imageCacheBytes > IMAGE_CACHE_LIMIT) {
@@ -110,9 +116,12 @@ async function cachedImage(key, load) {
     const task = (async () => {
       const buffer = await load();
       if (!buffer) return null;
-      const img = await compress(buffer);
-      cachePut(key, img);
-      return img;
+      const original = { buffer, type: "image/png" };
+      cachePut(key, original);
+      compress(buffer).then((img) => {
+        if (imageCache.get(key) === original) cachePut(key, img);
+      });
+      return original;
     })().finally(() => inflight.delete(key));
     inflight.set(key, task);
   }
