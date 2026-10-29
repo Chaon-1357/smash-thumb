@@ -476,11 +476,13 @@ function updateStatus() {
     el.classList.remove("error");
   } else if (failed.length) {
     el.textContent = `画像が見つかりません: ${[...new Set(failed)].join(", ")}（名前・カラー番号を確認してください）`;
+    el.title = el.textContent; // 省略された場合もマウスを乗せれば全文が見える
     el.classList.add("error");
   } else {
     el.textContent = "";
     el.classList.remove("error");
   }
+  if (!el.classList.contains("error")) el.title = "";
 }
 
 // =========================================================
