@@ -1,4 +1,20 @@
 /* 全体のリセットと基本設定 */
+:root {
+  --bg: #2c2f33;
+  --panel: #23272a;
+  --border: #444;
+  --text: #ffffff;
+  --muted: #99aab5;
+  --accent: #419393;
+  --blue: #7289da;
+  --green: #43b581;
+  --danger: #f04747;
+  --main: #6F5C87;
+  --main-text: #E8FAFC;
+  --pre: #7CA1D6;
+  --pre-text: #FFF3FF;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -6,9 +22,9 @@
 body {
   margin: 0;
   padding: 10px;
-  font-family: 'Nunito Sans', 'Noto Serif JP', sans-serif;
-  background-color: #2c2f33; /* ダーク背景 */
-  color: #ffffff;
+  font-family: 'Nunito Sans', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', sans-serif;
+  background-color: var(--bg); /* ダーク背景 */
+  color: var(--text);
 }
 
 header h1 {
@@ -17,6 +33,12 @@ header h1 {
   margin-top: 5px;
   margin-bottom: 15px;
   color: #E8FAFC;
+}
+
+header .version {
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-weight: normal;
 }
 
 /* メインレイアウト (スマホは縦、PCは横) */
@@ -34,12 +56,19 @@ main {
     flex-direction: row; /* 横並びに変更 */
     align-items: flex-start;
   }
+
+  /* プレビューをスクロールしても見えるように固定 */
+  #canvas-container {
+    position: sticky;
+    top: 10px;
+  }
 }
 
 /* 入力パネルのスタイル */
 #controls {
   flex: 1; /* PC時、画面の1/4くらいを占める */
-  background: #23272a;
+  min-width: 320px;
+  background: var(--panel);
   padding: 20px;
   border-radius: 8px;
   display: flex;
@@ -48,24 +77,23 @@ main {
 }
 
 .player-box, .match-box {
-  background: #2c2f33;
+  background: var(--bg);
   padding: 15px;
   border-radius: 8px;
-  border: 1px solid #444;
-}
-
-h2 {
-  margin-top: 0;
-  font-size: 1.2rem;
-  border-bottom: 2px solid #7289da;
-  padding-bottom: 5px;
+  border: 1px solid var(--border);
 }
 
 label {
   display: block;
   margin-top: 10px;
   font-size: 0.85rem;
-  color: #99aab5;
+  color: var(--muted);
+}
+
+label output {
+  float: right;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 input[type="text"], input[type="number"] {
@@ -73,14 +101,48 @@ input[type="text"], input[type="number"] {
   padding: 8px;
   margin-top: 4px;
   border-radius: 4px;
-  border: 1px solid #7289da;
-  background: #23272a;
-  color: #ffffff;
+  border: 1px solid var(--blue);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 1rem; /* 16px未満だとiPhoneで入力時に勝手にズームされる */
+}
+
+input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* 見つからなかったファイター名 */
+input.invalid {
+  border-color: var(--danger);
 }
 
 input[type="range"] {
   width: 100%;
   margin-top: 4px;
+  accent-color: var(--accent);
+}
+
+/* ファイター名とカラーを横並びに */
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.field.grow {
+  flex: 1;
+}
+
+.field.color {
+  width: 72px;
+}
+
+.row.sub label {
+  color: var(--accent);
+}
+
+.row.sub .field.grow label {
+  font-weight: bold;
 }
 
 button {
@@ -90,20 +152,77 @@ button {
   border: none;
   border-radius: 4px;
   font-weight: bold;
+  font-family: inherit;
   cursor: pointer;
   transition: opacity 0.2s;
 }
-
-.update-btn { background: #7289da; color: #fff; }
-.export-btn { background: #43b581; color: #fff; }
 
 button:hover {
   opacity: 0.8;
 }
 
+.export-btn { background: var(--green); color: #fff; }
+.swap-btn { background: var(--blue); color: #fff; }
+
+.sub-btn, .reset-btn {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 8px;
+  margin-top: 12px;
+}
+
+.clear-btn {
+  background: transparent;
+  color: var(--muted);
+  font-weight: normal;
+  font-size: 0.8rem;
+  margin-top: 0;
+  padding: 6px;
+}
+
+/* 常に表示する操作ボタン */
+.action-bar {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 8px;
+}
+
+.action-bar button {
+  margin-top: 0;
+}
+
+.bg-buttons {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+
 .bg-buttons button {
   flex: 1;
-  margin-top: 0;
+  padding: 10px;
+  border: 2px solid transparent;
+  opacity: 0.55;
+}
+
+.bg-buttons button.active {
+  opacity: 1;
+  border-color: #fff;
+}
+
+.mode-main { background: var(--main); color: var(--main-text); }
+.mode-pre { background: var(--pre); color: var(--pre-text); }
+
+.status {
+  grid-column: 1 / -1;
+  margin: 0;
+  min-height: 1.2em;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.status.error {
+  color: var(--danger);
 }
 
 /* キャンバス（プレビュー画像）のスタイル */
@@ -130,26 +249,24 @@ button:hover {
 .tab-buttons {
   display: flex;
   gap: 5px;
-  margin-bottom: 15px;
 }
 
 .tab-btn {
   flex: 1;
+  margin-top: 0;
   padding: 10px;
   background-color: #2a2a2a;
   color: #aaa;
-  border: 1px solid #444;
+  border: 1px solid var(--border);
   border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
   transition: all 0.2s;
 }
 
 /* 選択されているタブ */
 .tab-btn.active {
-  background-color: #419393;
+  background-color: var(--accent);
   color: #fff;
-  border-color: #419393;
+  border-color: var(--accent);
 }
 
 /* パネルの表示・非表示 */
@@ -166,9 +283,8 @@ button:hover {
    ======================== */
 @media (max-width: 768px) {
   main {
-    display: flex;
-    /* HTMLの順番を無視して、キャンバスを上に、コントロールを下に配置する魔法 */
-    flex-direction: column-reverse; 
+    /* HTMLの順番を無視して、キャンバスを上に、コントロールを下に配置する */
+    flex-direction: column-reverse;
   }
 
   #canvas-container {
@@ -181,17 +297,12 @@ button:hover {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5); /* 影をつけてアプリっぽく立体感を出す */
   }
 
-  /* キャンバス（画用紙）のサイズをスマホの横幅に100%合わせる */
-  #canvas-container canvas {
-    max-width: 100% !important;
-    height: auto !important;
-  }
-
   #controls {
+    min-width: 0;
     /* キャンバスが固定された分、下の操作パネルが窮屈にならないよう余白を調整 */
     padding: 15px;
   }
-  
+
   /* スマホの時はタブボタンを少し大きくして押しやすくする */
   .tab-btn {
     padding: 15px 5px;
