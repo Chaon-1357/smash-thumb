@@ -59,50 +59,109 @@ function canonicalChar(char) {
   return NAME_LOOKUP[c] || c;
 }
 
-// 一度見つかったURLは覚えておき、2回目以降の試行錯誤を省く
-const resolvedUrlCache = new Map();
-
 // =========================================================
-// 公式画像のパスを探す処理
+// 画像の変換とキャッシュ（読み込みを速くする）
 // =========================================================
-function buildCandidateUrls(char, color) {
-  const c = encodeURIComponent(OFFICIAL_SLUGS[char] || char);
-  const col = encodeURIComponent(String(color).trim());
-  const candidates = [];
+// 公式画像は1枚1〜3MBのPNGなので、WebPに変換してから返す（見た目はほぼ同じで1/5〜1/10程度になる）
+// sharp が使えない環境では元のPNGをそのまま返す
+let sharp = null;
+try {
+  sharp = (await import("sharp")).default;
+} catch (err) {
+  console.warn("⚠️ sharp を読み込めないため、画像は変換せずに返します");
+}
 
-  if (col) {
-    candidates.push(`https://www.smashbros.com/assets_v2/img/fighter/${c}/main${col}.png`);
-    candidates.push(`https://www.smashbros.com/assets_v2/img/fighter/${c}/main_${col}.png`);
-    candidates.push(`https://www.smashbros.com/assets_v2/img/fighter/${c}/main0${col}.png`);
+async function compress(buffer) {
+  if (!sharp) return { buffer, type: "image/png" };
+  try {
+    const webp = await sharp(buffer).webp({ quality: 90, alphaQuality: 100 }).toBuffer();
+    return { buffer: webp, type: "image/webp" };
+  } catch (err) {
+    return { buffer, type: "image/png" };
   }
-  candidates.push(`https://www.smashbros.com/assets_v2/img/fighter/${c}/main.png`);
-  candidates.push(`https://www.smashbros.com/assets/img/fighter/${c}/main.png`);
+}
 
-  return [...new Set(candidates)];
+// 変換済み画像をメモリに置き、2回目以降は公式サイト等に取りに行かない（古いものから捨てる）
+const IMAGE_CACHE_LIMIT = 80 * 1024 * 1024;
+const imageCache = new Map();
+let imageCacheBytes = 0;
+const inflight = new Map(); // 同じ画像への同時リクエストを1回の取得にまとめる
+
+function cachePut(key, img) {
+  imageCache.set(key, img);
+  imageCacheBytes += img.buffer.length;
+  while (imageCacheBytes > IMAGE_CACHE_LIMIT) {
+    const [oldKey, old] = imageCache.entries().next().value;
+    imageCache.delete(oldKey);
+    imageCacheBytes -= old.buffer.length;
+  }
+}
+
+async function cachedImage(key, load) {
+  const hit = imageCache.get(key);
+  if (hit) {
+    // 最近使ったものとして後ろに付け直す
+    imageCache.delete(key);
+    imageCache.set(key, hit);
+    return hit;
+  }
+
+  if (!inflight.has(key)) {
+    const task = (async () => {
+      const buffer = await load();
+      if (!buffer) return null;
+      const img = await compress(buffer);
+      cachePut(key, img);
+      return img;
+    })().finally(() => inflight.delete(key));
+    inflight.set(key, task);
+  }
+  return inflight.get(key);
+}
+
+function sendImage(res, img) {
+  res.set("Content-Type", img.type);
+  res.set("Cache-Control", CACHE_HEADER);
+  res.send(img.buffer);
 }
 
 async function fetchImage(u) {
   try {
-    const resp = await fetch(u, { headers: { "User-Agent": USER_AGENT } });
+    const resp = await fetch(u, {
+      headers: { "User-Agent": USER_AGENT },
+      signal: AbortSignal.timeout(15000),
+    });
     if (resp.ok && resp.headers.get("content-type")?.startsWith("image")) {
-      return resp;
+      return Buffer.from(await resp.arrayBuffer());
     }
   } catch (err) {}
   return null;
 }
 
-async function fetchFirstOk(urls) {
-  for (const u of urls) {
-    const resp = await fetchImage(u);
-    if (resp) return { resp, url: u };
+// =========================================================
+// 公式画像のパスを探す処理
+// =========================================================
+// 公式サイトはカラー1が main.png、カラー2以降が main2.png〜main8.png
+function buildCandidateUrls(char, color) {
+  const c = encodeURIComponent(OFFICIAL_SLUGS[char] || char);
+  const col = parseInt(color, 10);
+  const candidates = [];
+
+  if (col > 1) {
+    candidates.push(`https://www.smashbros.com/assets_v2/img/fighter/${c}/main${col}.png`);
   }
-  return null;
+  candidates.push(`https://www.smashbros.com/assets_v2/img/fighter/${c}/main.png`);
+  candidates.push(`https://www.smashbros.com/assets/img/fighter/${c}/main.png`);
+
+  return candidates;
 }
 
-function sendImage(res, resp) {
-  res.set("Content-Type", resp.headers.get("content-type") || "image/png");
-  res.set("Cache-Control", CACHE_HEADER);
-  resp.body.pipe(res);
+async function fetchFirstOk(urls) {
+  for (const u of urls) {
+    const buffer = await fetchImage(u);
+    if (buffer) return buffer;
+  }
+  return null;
 }
 
 app.get("/image", async (req, res) => {
@@ -111,22 +170,13 @@ app.get("/image", async (req, res) => {
 
   try {
     const c = canonicalChar(char);
-    const cacheKey = `image:${c}:${color || ""}`;
+    const col = parseInt(color, 10) || 1;
+    const img = await cachedImage(`image:${c}:${col}`, () => fetchFirstOk(buildCandidateUrls(c, col)));
 
-    const cachedUrl = resolvedUrlCache.get(cacheKey);
-    if (cachedUrl) {
-      const resp = await fetchImage(cachedUrl);
-      if (resp) return sendImage(res, resp);
-      resolvedUrlCache.delete(cacheKey);
-    }
-
-    const result = await fetchFirstOk(buildCandidateUrls(c, color || ""));
-    if (!result) {
+    if (!img) {
       return res.status(404).send("Character image not found");
     }
-
-    resolvedUrlCache.set(cacheKey, result.url);
-    sendImage(res, result.resp);
+    sendImage(res, img);
   } catch (err) {
     res.status(500).send("Image fetch failed");
   }
@@ -142,7 +192,10 @@ async function findStockIconUrl(c, colNum) {
 
   console.log(`🔍 API Trying: ${apiUrl}`);
 
-  const apiResp = await fetch(apiUrl, { headers: { "User-Agent": USER_AGENT } });
+  const apiResp = await fetch(apiUrl, {
+    headers: { "User-Agent": USER_AGENT },
+    signal: AbortSignal.timeout(15000),
+  });
   if (!apiResp.ok) return null;
 
   const apiData = await apiResp.json();
@@ -160,26 +213,19 @@ app.get("/stock-icon", async (req, res) => {
   try {
     const c = canonicalChar(char);
     const colNum = String(color || "1").padStart(2, "0");
-    const cacheKey = `icon:${c}:${colNum}`;
 
-    let imageUrl = resolvedUrlCache.get(cacheKey);
-    if (!imageUrl) {
-      imageUrl = await findStockIconUrl(c, colNum);
-      if (!imageUrl) {
-        console.warn(`❌ Wiki Icon not found for: ${c} (Color: ${colNum})`);
-        return res.status(404).send("Icon not found on Wiki");
-      }
-      resolvedUrlCache.set(cacheKey, imageUrl);
+    const img = await cachedImage(`icon:${c}:${colNum}`, async () => {
+      const imageUrl = await findStockIconUrl(c, colNum);
+      if (!imageUrl) return null;
       console.log(`✅ Found Icon URL: ${imageUrl}`);
-    }
+      return fetchImage(imageUrl);
+    });
 
-    const imgResp = await fetchImage(imageUrl);
-    if (!imgResp) {
-      resolvedUrlCache.delete(cacheKey);
-      return res.status(502).send("Icon fetch failed");
+    if (!img) {
+      console.warn(`❌ Wiki Icon not found for: ${c} (Color: ${colNum})`);
+      return res.status(404).send("Icon not found on Wiki");
     }
-
-    sendImage(res, imgResp);
+    sendImage(res, img);
   } catch (err) {
     console.error("❌ Stock Icon fetch failed:", err);
     res.status(500).send("Icon fetch failed");

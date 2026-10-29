@@ -185,10 +185,13 @@ function setupInputs() {
       clearTimeout(timer);
       timer = setTimeout(() => loadSlot(id), delay);
     };
+    // 名前が辞書と完全に一致したら（予測変換で選んだ時など）すぐ読み込む
+    document.getElementById(id).addEventListener("input", (e) => {
+      schedule(NAME_LOOKUP[normalizeChar(e.target.value)] ? 0 : 600);
+    });
+    document.getElementById(slot.color).addEventListener("input", () => schedule(300));
     [id, slot.color].forEach((inputId) => {
-      const el = document.getElementById(inputId);
-      el.addEventListener("input", () => schedule(600));
-      el.addEventListener("change", () => schedule(0));
+      document.getElementById(inputId).addEventListener("change", () => schedule(0));
     });
   });
 }
