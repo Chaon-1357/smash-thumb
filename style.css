@@ -169,12 +169,18 @@ button:hover {
 .export-btn { background: var(--green); color: #fff; }
 .swap-btn { background: var(--blue); color: #fff; }
 
-.sub-btn, .reset-btn {
+.sub-btn, .reset-btn, .flip-btn {
   background: transparent;
   color: var(--muted);
   border: 1px solid var(--border);
   padding: 8px;
   margin-top: 12px;
+}
+
+.flip-btn.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent);
 }
 
 .clear-btn {

@@ -77,7 +77,7 @@ Object.values(SLOTS).forEach((slot) => {
   slot.failed = null;
 });
 
-const PLAYER_FIELDS = ["Char", "Color", "Icon1", "Icon1Color", "Icon2", "Icon2Color", "Name", "Team"];
+const PLAYER_FIELDS = ["Char", "Color", "Icon1", "Icon1Color", "Icon2", "Icon2Color", "Name", "Team", "Flip"];
 const FIELD_IDS = [
   ...PLAYER_FIELDS.map((f) => `p1${f}`),
   ...PLAYER_FIELDS.map((f) => `p2${f}`),
@@ -136,6 +136,7 @@ function setup() {
   setupAutocomplete();
   restoreFields();
   applyModeStyle();
+  updateFlipButtons();
 
   setupColorWrap();
   setupInputs();
@@ -243,6 +244,32 @@ function setupButtons() {
   document.querySelectorAll(".reset-btn").forEach((btn) => {
     btn.addEventListener("click", () => resetAdjustment(btn.dataset.player));
   });
+
+  document.querySelectorAll(".flip-btn").forEach((btn) => {
+    btn.addEventListener("click", () => toggleFlip(btn.dataset.player));
+  });
+}
+
+// =========================================================
+// 立ち絵の左右反転（プレイヤーごと。入力内容と一緒に保存される）
+// =========================================================
+function isFlipped(num) {
+  return getVal(`p${num}Flip`) === "1";
+}
+
+function toggleFlip(num) {
+  document.getElementById(`p${num}Flip`).value = isFlipped(num) ? "0" : "1";
+  updateFlipButtons();
+  saveFields();
+  redraw();
+}
+
+function updateFlipButtons() {
+  document.querySelectorAll(".flip-btn").forEach((btn) => {
+    const on = isFlipped(btn.dataset.player);
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-pressed", String(on));
+  });
 }
 
 // =========================================================
@@ -287,6 +314,7 @@ function clearFields() {
     el.value = el.defaultValue;
   });
   storage.remove("thumbFields");
+  updateFlipButtons();
   Object.keys(SLOTS).forEach((id) => loadSlot(id));
   refreshText();
 }
@@ -320,6 +348,7 @@ function swapPlayers() {
 
   restoreSliders(1);
   restoreSliders(2);
+  updateFlipButtons();
   saveFields();
   updateStatus();
   refreshText();
@@ -658,13 +687,16 @@ function drawCharacter(num, img, baseX) {
   drawingContext.rect(frame.x, frame.y, frame.w, frame.h);
   drawingContext.clip();
 
-  image(
-    img,
-    baseX - w / 2 + adj.xOffset,
-    CONFIG.charCenterY - h / 2 + adj.yOffset,
-    w,
-    h
-  );
+  const x = baseX - w / 2 + adj.xOffset;
+  const y = CONFIG.charCenterY - h / 2 + adj.yOffset;
+  if (isFlipped(num)) {
+    // 画像自身の中心を軸に反転するので、位置スライダーの向きはそのまま
+    drawingContext.translate(x + w / 2, 0);
+    drawingContext.scale(-1, 1);
+    image(img, -w / 2, y, w, h);
+  } else {
+    image(img, x, y, w, h);
+  }
 
   drawingContext.restore();
 }
